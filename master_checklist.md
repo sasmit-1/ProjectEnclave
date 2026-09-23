@@ -8,36 +8,36 @@ This file is designed to be read by an AI assistant. It contains detailed test c
 
 ## Phase 1: Foundation, UI & Core Streaming
 
-- [ ] **Step 1: Project Initialization**
+- [x] **Step 1: Project Initialization**
   - **AI Check:** 
     1. Inspect `server/package.json` for `express` and `cors`.
     2. Inspect `client/package.json` for `react`, `vite`, `tailwindcss`, and `zustand`.
     3. Verify a basic health check endpoint exists (e.g., `app.get('/api/health')` in the server entry point).
 
-- [ ] **Step 2: Database Setup & User Auth**
+- [x] **Step 2: Database Setup & User Auth**
   - **AI Check:** 
     1. Verify `mongoose`, `bcrypt`, and `jsonwebtoken` are in `server/package.json`.
     2. Inspect the backend models folder for a `User` Mongoose schema with password hashing logic.
     3. Inspect backend routes for `POST /api/auth/register` and `POST /api/auth/login`.
 
-- [ ] **Step 3: Frontend UI & Auth Wiring**
+- [x] **Step 3: Frontend UI & Auth Wiring**
   - **AI Check:**
     1. Inspect frontend code (`client/src`) for an Axios interceptor or fetch wrapper configured to automatically attach the JWT token to the `Authorization` header.
     2. Verify a Zustand store exists for managing user authentication state.
     3. Verify React Router is set up with a protected route for the Vault Dashboard.
 
-- [ ] **Step 4: Storage & File Metadata**
+- [x] **Step 4: Storage & File Metadata**
   - **AI Check:**
     1. Inspect backend models for a `File` schema containing `filename`, `size`, `owner`, and `storagePath` (or S3 Key).
     2. Verify a `GET /api/vault` endpoint exists to fetch the file array for the logged-in user.
 
-- [ ] **Step 5: Streaming Uploads**
+- [x] **Step 5: Streaming Uploads**
   - **AI Check:**
     1. Inspect `POST /api/files/upload`.
     2. **Crucial:** Verify it uses a streaming parser like `busboy` or `formidable`. 
     3. Verify it uses `fs.createWriteStream()` (or AWS S3 `Upload` stream) to pipe data. It MUST NOT use `multer` memory storage to buffer files into RAM.
 
-- [ ] **Step 6: Streaming Downloads**
+- [x] **Step 6: Streaming Downloads**
   - **AI Check:**
     1. Inspect `GET /api/files/download/:id`.
     2. Verify it queries the DB for ownership, then uses `fs.createReadStream()` piped directly to the Express `res` object (`readStream.pipe(res)`).

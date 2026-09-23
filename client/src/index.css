@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+body {
+  background-color: var(--color-background, #f8fafc);
+  color: var(--color-text, #0f172a);
+  margin: 0;
+  font-family: Calibri, system-ui, sans-serif;
+  font-size: 1.125rem;
+}
