@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 1 - Step 3: Frontend UI - Auth & Vault Dashboard
 
 ## Context
@@ -19,3 +22,5 @@
 
 ## Next Step Connection
 With the user securely logged in and navigating a protected dashboard, we need a place to store their files. Step 4 will prepare the physical storage layer and the file metadata schemas.
+
+

@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 3 - Step 5: Threat UI & Lockdown State
 
 ## Context
@@ -15,3 +18,5 @@
 
 ## Next Step Connection
 The entire system is complete. Step 6 will focus on building the attack script to test the defense and finalizing the presentation demo.
+
+

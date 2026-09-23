@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 2 - Step 1: Database Schema Expansion for Crypto
 
 ## Context
@@ -15,3 +18,5 @@
 
 ## Next Step Connection
 With the database ready to store encryption metadata, we need to establish the actual encryption keys and utilities. Step 2 will focus on setting up the Master Key and crypto helper functions.
+
+

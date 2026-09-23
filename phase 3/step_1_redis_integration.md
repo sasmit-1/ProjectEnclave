@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 3 - Step 1: Redis Integration
 
 ## Context
@@ -16,3 +19,5 @@
 
 ## Next Step Connection
 With Redis functioning in the backend RAM, we have the infrastructure to track user download speeds in real-time. Step 2 will implement the exact metrics tracking needed for the defense engine.
+
+

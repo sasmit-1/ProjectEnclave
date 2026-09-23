@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 1 - Step 5: Core Streaming Pipeline - Uploads
 
 ## Context
@@ -18,3 +21,5 @@
 
 ## Next Step Connection
 Users can now efficiently upload large files and immediately see them in their dashboard. The final step, Step 6, completes the cycle by allowing them to download those files.
+
+

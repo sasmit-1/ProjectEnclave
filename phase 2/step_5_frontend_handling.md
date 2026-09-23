@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 2 - Step 5: Frontend Error Handling & Tamper Alerts
 
 ## Context
@@ -14,3 +17,5 @@
 
 ## Next Step Connection
 The code for Phase 2 is complete. Step 6 will focus entirely on manually testing and proving the Deliverable for Review 2.
+
+

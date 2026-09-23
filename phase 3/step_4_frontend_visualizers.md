@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 3 - Step 4: Real-time Visualizers (Encryption Animation)
 
 ## Context
@@ -17,3 +20,5 @@
 
 ## Next Step Connection
 The presentation visuals are stunning. Now we need to ensure the user knows when the backend Active Defense has quarantined them. Step 5 will build the Lockdown UI.
+
+

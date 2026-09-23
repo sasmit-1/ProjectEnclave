@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 3 - Step 2: Behavioral Tracking (Velocity Metrics)
 
 ## Context
@@ -17,3 +20,5 @@
 
 ## Next Step Connection
 The system now knows silently in the background if a user is acting suspiciously. Step 3 will give the system the teeth to fight back by severing the connection.
+
+

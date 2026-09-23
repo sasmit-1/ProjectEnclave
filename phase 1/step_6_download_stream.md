@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 1 - Step 6: Core Streaming Pipeline - Downloads
 
 ## Context
@@ -21,3 +24,5 @@
 
 ## Phase 1 Complete!
 With this step finished, Phase 1 is fully operational. We have a working web app where users can register, log in, navigate a secure vault, and seamlessly stream large files up and down without crashing the server.
+
+

@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 2 - Step 2: Master Key Management & Crypto Utilities
 
 ## Context
@@ -16,3 +19,5 @@
 
 ## Next Step Connection
 Now that we have our Master Key and IV generation logic, we can insert the encryption engine directly into our file upload pipeline in Step 3.
+
+

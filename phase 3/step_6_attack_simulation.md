@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 3 - Step 6: Attack Simulation & Final Polish
 
 ## Context
@@ -19,3 +22,5 @@
 
 ## Phase 3 Complete!
 With this step finished, the AOOP project is 100% complete and ready for the final Review 3 presentation. You have built a secure, streaming-based, actively defensive cloud architecture.
+
+

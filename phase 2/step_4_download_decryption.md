@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 2 - Step 4: Decryption & Integrity Validation (Downloads)
 
 ## Context
@@ -19,3 +22,5 @@
 
 ## Next Step Connection
 The backend now enforces cryptographic integrity. Step 5 will ensure the Frontend gracefully handles the scenario where a download is rejected due to tampering.
+
+

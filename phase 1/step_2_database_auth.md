@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 1 - Step 2: Database Setup & User Authentication
 
 ## Context
@@ -20,3 +23,5 @@
 
 ## Next Step Connection
 Now that the backend can issue secure tokens and manage users, Step 3 will focus on building the Frontend UI to consume these endpoints, log the user in, and manage their session state.
+
+

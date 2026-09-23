@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Wayfinder Directory
 
 This directory acts as our progress tracker and logbook. 
@@ -8,3 +11,5 @@ Whenever we complete a micro-step, feature, or resolve a major bug, we will crea
 - **Content:** Include a brief summary of what was achieved, any critical decisions made (like choosing a specific library), and any open thoughts for the next steps.
 
 This ensures we always know exactly where we left off and maintains a clear history of our development journey.
+
+

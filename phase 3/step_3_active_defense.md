@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 3 - Step 3: Active Defense Engine (Stream Severing)
 
 ## Context
@@ -16,3 +19,5 @@
 
 ## Next Step Connection
 The backend is now armed and dangerous. To make the project presentable and visually engaging, Step 4 will introduce real-time Frontend visualizers.
+
+

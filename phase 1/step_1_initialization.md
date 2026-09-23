@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 1 - Step 1: Project Initialization & Skeleton
 
 ## Context
@@ -22,3 +25,5 @@
 
 ## Next Step Connection
 With the boilerplate running and CORS issues out of the way, Step 2 will focus on connecting to MongoDB and securing the app with user authentication.
+
+

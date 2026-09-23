@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 2 - Step 3: Zero-Overhead Streaming Encryption (Uploads)
 
 ## Context
@@ -19,3 +22,5 @@
 
 ## Next Step Connection
 Files are now successfully arriving at the storage layer as unreadable ciphertext. To make them useful again, Step 4 will implement the reverse process: Decryption and Integrity Validation.
+
+

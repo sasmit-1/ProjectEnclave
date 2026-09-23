@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # AOOP Project - Automated AI Master Checklist
 
 This file is designed to be read by an AI assistant. It contains detailed test conditions for every step of the project. 
@@ -96,3 +99,5 @@ This file is designed to be read by an AI assistant. It contains detailed test c
 
 - [ ] **Step 6: Attack Script**
   - **AI Check:** Verify a standalone script (e.g., `attack.js` or `attack.py`) exists in the project root or a `scripts/` folder, containing an automated loop designed to hit the download endpoint continuously.
+
+

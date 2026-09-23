@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # AOOP Project - Development Phases
 
 Based on the project requirements—a highly secure, streaming-based cloud storage system with active behavioral defense and on-the-fly encryption—the development is divided into three distinct phases for the 3 project reviews.
@@ -27,3 +30,5 @@ Based on the project requirements—a highly secure, streaming-based cloud stora
 * **Testing & Final Polish:** Simulate an attack by writing a quick script that attempts to drain gigabytes of data using a stolen session token, proving your active defense stops it mid-stream.
 
 **Deliverable:** The complete, production-ready secure vault. A show-stopping final demonstration where you visually show the encryption happening and actively block an automated exfiltration script in real-time.
+
+

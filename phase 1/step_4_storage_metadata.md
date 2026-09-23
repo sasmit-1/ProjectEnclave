@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **MERN Stack Project:** This project must be strictly built using the MERN stack (MongoDB, Express, React, Node.js). Do not use Python scripts or alternative backend languages.
+
 # Phase 1 - Step 4: Storage Integration & File Metadata Schema
 
 ## Context
@@ -20,3 +23,5 @@
 
 ## Next Step Connection
 The UI can now dynamically display what's in the database. Next, Step 5 will build the actual file upload mechanism so users can start putting files into the vault.
+
+
