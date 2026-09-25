@@ -1,4 +1,4 @@
-# Project Enclave: Secure Cloud Vault 🛡️
+# Project Enclave: Secure Cloud Vault 
 
 ![MERN Stack](https://img.shields.io/badge/Stack-MERN-blue?style=flat-square&logo=react)
 ![Encryption](https://img.shields.io/badge/Security-AES--256--GCM-success?style=flat-square)
@@ -8,7 +8,7 @@ A highly secure, streaming-based cloud storage system featuring active behaviora
 
 ---
 
-## 🌟 Key Features
+##  Key Features
 
 * **Zero-Overhead Streaming Encryption:** Files are encrypted on the fly as they stream to the server. No RAM exhaustion even for gigabyte-sized files.
 * **Cryptographic Integrity Validation:** Uses AES-256-GCM authentication tags to verify data hasn't been tampered with. Ransomware-modified files are instantly rejected upon download.
@@ -17,7 +17,7 @@ A highly secure, streaming-based cloud storage system featuring active behaviora
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 * **Frontend:** React, Vite, Tailwind CSS, Zustand, Framer Motion
 * **Backend:** Node.js, Express.js, Node Streams API (`crypto`, `fs`)
@@ -26,7 +26,7 @@ A highly secure, streaming-based cloud storage system featuring active behaviora
 
 ---
 
-## 🚀 Development Phases
+## Development Phases
 
 This project is built iteratively across three major phases:
 
@@ -52,6 +52,6 @@ This project is built iteratively across three major phases:
 
 ---
 
-## ⚙️ Getting Started
+##  Getting Started
 
 Instructions on how to run this project locally will be added here as the development progresses.
