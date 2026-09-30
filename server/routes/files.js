@@ -95,8 +95,25 @@ router.get('/download/:fileId', authMiddleware, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${fileDoc.originalName}"`);
     res.setHeader('Content-Type', fileDoc.mimeType);
 
+    const ivBuffer = Buffer.from(fileDoc.iv, 'hex');
+    const authTagBuffer = Buffer.from(fileDoc.authTag, 'hex');
+    const masterKey = cryptoUtils.getMasterKey();
+
+    const decipher = crypto.createDecipheriv('aes-256-gcm', masterKey, ivBuffer);
+    decipher.setAuthTag(authTagBuffer);
+
     const readStream = fs.createReadStream(fileDoc.storagePath);
-    readStream.pipe(res);
+
+    decipher.on('error', (err) => {
+      console.error('CRITICAL: Integrity Check Failed / Possible Tampering detected.', err);
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'File integrity check failed.' });
+      } else {
+        res.destroy(err);
+      }
+    });
+
+    readStream.pipe(decipher).pipe(res);
   } catch (err) {
     console.error('Download error:', err);
     res.status(500).json({ message: 'Server error during download' });
