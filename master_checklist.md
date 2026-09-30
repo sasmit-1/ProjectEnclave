@@ -54,7 +54,7 @@ This file is designed to be read by an AI assistant. It contains detailed test c
     1. Verify a utility file (e.g., `server/utils/crypto.js`) exists with a function to generate a 12-byte random IV (`crypto.randomBytes(12)`).
     2. Verify logic exists to load a `MASTER_KEY` from environment variables.
 
-- [ ] **Step 3: Upload Encryption (On-the-fly)**
+- [x] **Step 3: Upload Encryption (On-the-fly)**
   - **AI Check:**
     1. Inspect `POST /api/files/upload`.
     2. Verify `crypto.createCipheriv('aes-256-gcm', ...)` is initialized.
