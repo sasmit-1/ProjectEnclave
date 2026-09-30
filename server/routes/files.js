@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const busboy = require('busboy');
 const crypto = require('crypto');
+const cryptoUtils = require('../utils/crypto');
 const File = require('../models/File');
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -20,25 +21,32 @@ router.post('/upload', authMiddleware, (req, res) => {
     const saveTo = path.join(__dirname, '..', 'uploads', uniqueFilename);
     let fileSize = 0;
     
+    const ivBuffer = cryptoUtils.generateIV();
+    const masterKey = cryptoUtils.getMasterKey();
+    const cipher = crypto.createCipheriv('aes-256-gcm', masterKey, ivBuffer);
+    
     const writeStream = fs.createWriteStream(saveTo);
     
     file.on('data', (data) => {
       fileSize += data.length;
     });
 
-    // Pipe the readable file stream to the writable disk stream directly
-    file.pipe(writeStream);
+    // Pipe the readable file stream through cipher to the writable disk stream
+    file.pipe(cipher).pipe(writeStream);
     
     const p = new Promise((resolve, reject) => {
       writeStream.on('finish', async () => {
         try {
+          const authTagBuffer = cipher.getAuthTag();
           const fileDoc = new File({
             originalName: filename,
             filename: uniqueFilename,
             mimeType: mimeType,
             size: fileSize,
             storagePath: saveTo,
-            owner: req.user.id
+            owner: req.user.id,
+            iv: ivBuffer.toString('hex'),
+            authTag: authTagBuffer.toString('hex')
           });
           await fileDoc.save();
           resolve(fileDoc);
@@ -47,6 +55,7 @@ router.post('/upload', authMiddleware, (req, res) => {
         }
       });
       writeStream.on('error', reject);
+      cipher.on('error', reject);
     });
     
     uploadPromises.push(p);
