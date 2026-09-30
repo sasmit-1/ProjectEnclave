@@ -46,10 +46,10 @@ This file is designed to be read by an AI assistant. It contains detailed test c
 
 ## Phase 2: Cryptographic Engine & Integrity Validation
 
-- [ ] **Step 1: Crypto Schema Expansion**
+- [x] **Step 1: Crypto Schema Expansion**
   - **AI Check:** Inspect the `File` model schema. Verify the fields `iv` (String) and `authTag` (String) have been explicitly added.
 
-- [ ] **Step 2: Key Management**
+- [x] **Step 2: Key Management**
   - **AI Check:**
     1. Verify a utility file (e.g., `server/utils/crypto.js`) exists with a function to generate a 12-byte random IV (`crypto.randomBytes(12)`).
     2. Verify logic exists to load a `MASTER_KEY` from environment variables.
