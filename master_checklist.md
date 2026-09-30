@@ -61,7 +61,7 @@ This file is designed to be read by an AI assistant. It contains detailed test c
     3. Verify the stream pipeline is updated to push data through the cipher: `stream.pipe(cipher).pipe(writeStream)`.
     4. Verify `cipher.getAuthTag()` is called on the stream's finish event and the resulting tag is saved to the DB.
 
-- [ ] **Step 4: Download Decryption & Integrity**
+- [x] **Step 4: Download Decryption & Integrity**
   - **AI Check:**
     1. Inspect `GET /api/files/download/:id`.
     2. Verify `crypto.createDecipheriv('aes-256-gcm', ...)` is initialized using the `iv` fetched from the DB.
