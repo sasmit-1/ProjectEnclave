@@ -26,6 +26,14 @@ const fileSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  iv: {
+    type: String,
+    required: true,
+  },
+  authTag: {
+    type: String,
+    required: true,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
