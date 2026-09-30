@@ -95,6 +95,10 @@ router.get('/download/:fileId', authMiddleware, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${fileDoc.originalName}"`);
     res.setHeader('Content-Type', fileDoc.mimeType);
 
+    if (!fileDoc.iv || !fileDoc.authTag) {
+      return res.status(400).json({ message: 'Legacy file missing encryption metadata' });
+    }
+
     const ivBuffer = Buffer.from(fileDoc.iv, 'hex');
     const authTagBuffer = Buffer.from(fileDoc.authTag, 'hex');
     const masterKey = cryptoUtils.getMasterKey();
@@ -103,6 +107,12 @@ router.get('/download/:fileId', authMiddleware, async (req, res) => {
     decipher.setAuthTag(authTagBuffer);
 
     const readStream = fs.createReadStream(fileDoc.storagePath);
+
+    readStream.on('error', (err) => {
+      console.error('ReadStream error:', err);
+      if (!res.headersSent) res.status(500).json({ message: 'Error reading file from disk' });
+      else res.destroy(err);
+    });
 
     decipher.on('error', (err) => {
       console.error('CRITICAL: Integrity Check Failed / Possible Tampering detected.', err);
