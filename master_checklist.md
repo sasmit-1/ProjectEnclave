@@ -72,7 +72,7 @@ This file is designed to be read by an AI assistant. It contains detailed test c
 - [x] **Step 5: Tamper UI Alert**
   - **AI Check:** Inspect frontend download logic. Verify it catches generic 500 errors or specific integrity errors and triggers a UI alert/toast containing keywords like "Integrity", "Compromised", or "Tampered".
 
-- [] **Step 6: Validation Ready**
+- [x] **Step 6: Validation Ready**
   - **AI Check:** Verify all Phase 2 steps above are checked off to confirm end-to-end encryption is functional.
 
 ---

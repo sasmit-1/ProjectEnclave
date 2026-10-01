@@ -1,240 +1,310 @@
-import { useState, useEffect, useRef } from 'react';
-import useAuthStore from '../store/authStore';
-import api from '../api/axios';
+import { useCallback, useEffect, useRef, useState } from 'react'
+import api from '../api/axios'
+import ThemeToggle from '../components/ThemeToggle'
+import useAuthStore from '../store/authStore'
 
-const Dashboard = () => {
-  const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
-  const [files, setFiles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
-  const fileInputRef = useRef(null);
-  const [uploading, setUploading] = useState(false);
-  const [tamperAlert, setTamperAlert] = useState(false);
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-  const fetchVault = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/vault');
-      setFiles(res.data);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching vault:', err);
-      setError('Failed to load vault.');
-    } finally {
-      setLoading(false);
-    }
-  };
+// 40 -> "40 B", 6144 -> "6.0 KB", 5033164 -> "4.8 MB", 1181116006 -> "1.1 GB"
+function formatSize(bytes) {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let size = bytes
+  let unit = 0
+  while (size >= 1024 && unit < units.length - 1) {
+    size /= 1024
+    unit++
+  }
+  if (unit === 0) return `${size} B`
+  return `${size < 10 ? size.toFixed(1) : Math.round(size)} ${units[unit]}`
+}
+
+// "30 Sep 2026"
+function formatDate(value) {
+  const d = new Date(value)
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`
+}
+
+function UploadIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 16V4M6 10l6-6 6 6M4 20h16" />
+    </svg>
+  )
+}
+
+function AlertIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+      <path d="M12 9v4M12 17h.01" />
+    </svg>
+  )
+}
+
+function Dashboard() {
+  const user = useAuthStore((state) => state.user)
+  const logout = useAuthStore((state) => state.logout)
+  const [files, setFiles] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const fileInputRef = useRef(null)
+  const [progress, setProgress] = useState(null) // null when not uploading
+  const [uploadName, setUploadName] = useState('')
+  const [uploadError, setUploadError] = useState('')
+  const [downloadingId, setDownloadingId] = useState(null)
+  const [downloadError, setDownloadError] = useState('')
+  const [tamperedFile, setTamperedFile] = useState(null) // name of the file that failed the integrity check
+
+  const fetchFiles = useCallback(
+    () =>
+      api
+        .get('/vault')
+        .then(({ data }) => {
+          setFiles(data)
+          setError('')
+        })
+        .catch((err) => setError(err.response?.data?.message || 'Could not load your vault'))
+        .finally(() => setLoading(false)),
+    [],
+  )
 
   useEffect(() => {
-    fetchVault();
-  }, []);
-
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-  };
+    fetchFiles()
+  }, [fetchFiles])
 
   const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const file = e.target.files[0]
+    e.target.value = '' // lets the same file be picked again
+    if (!file) return
 
-    const formData = new FormData();
-    formData.append('file', file);
-
+    const formData = new FormData()
+    formData.append('file', file)
+    setUploadError('')
+    setUploadName(file.name)
+    setProgress(0)
     try {
-      setUploading(true);
       await api.post('/files/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      fetchVault();
+        onUploadProgress: (event) => {
+          if (event.total) setProgress(Math.round((event.loaded * 100) / event.total))
+        },
+      })
+      await fetchFiles()
     } catch (err) {
-      console.error('Upload failed:', err);
-      alert('Upload failed');
+      setUploadError(err.response?.data?.message || 'Upload failed')
     } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      setProgress(null)
     }
-  };
+  }
 
-  const handleDownload = async (fileId, originalName) => {
+  // Fetch as a blob (so the JWT header is sent), then save via a temporary link
+  const handleDownload = async (file) => {
+    setDownloadError('')
+    setDownloadingId(file._id)
     try {
-      const response = await api.get(`/files/download/${fileId}`, {
-        responseType: 'blob', 
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', originalName);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      const { data } = await api.get(`/files/download/${file._id}`, { responseType: 'blob' })
+      const url = URL.createObjectURL(data)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = file.originalName
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (err) {
-      console.error('Download failed:', err);
-      if (err.response?.status === 500 || err.message?.toLowerCase().includes('network error')) {
-        setTamperAlert(true);
+      if (!err.response) {
+        // The server cut the stream off mid-download: the integrity check failed
+        setTamperedFile(file.originalName)
       } else {
-        alert('Download failed');
+        // The error body is a Blob because of responseType: 'blob'
+        let message = 'Download failed'
+        try {
+          message = JSON.parse(await err.response.data.text()).message
+        } catch {
+          // keep the default message
+        }
+        setDownloadError(message)
       }
+    } finally {
+      setDownloadingId(null)
     }
-  };
+  }
+
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0)
+  const summary = loading
+    ? ''
+    : `${files.length} ${files.length === 1 ? 'file' : 'files'}${files.length ? ` · ${formatSize(totalSize)}` : ''}`
+  const statusMessage = loading
+    ? 'Loading...'
+    : error || (files.length === 0 ? 'No files yet. Use Upload to add one.' : '')
+  const actionError = uploadError || downloadError
 
   return (
-    <div className="min-h-screen flex bg-background text-text font-sans">
-      {/* Tamper Alert Modal */}
-      {tamperAlert && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-lg w-full border-4 border-red-500 shadow-2xl animate-pulse">
-            <div className="flex items-center gap-4 mb-6 text-red-600">
-              <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-              <h3 className="text-3xl font-extrabold">CRITICAL ALERT</h3>
+    <div className="flex min-h-screen flex-col bg-bg text-fg">
+      {tamperedFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="tamper-title"
+            aria-describedby="tamper-desc"
+            className="flex w-full max-w-[440px] flex-col gap-3 rounded-lg border border-danger-border bg-dialog p-6"
+          >
+            <div className="flex items-center gap-2.5 text-danger">
+              <AlertIcon />
+              <h2 id="tamper-title" className="text-lg font-semibold">
+                Download Blocked
+              </h2>
             </div>
-            <p className="text-xl text-gray-800 font-bold mb-8">
-              Download Blocked: File integrity compromised. Potential tampering detected.
+            <p id="tamper-desc" className="text-sm leading-relaxed">
+              File integrity compromised. Potential tampering detected.
             </p>
-            <button 
-              onClick={() => setTamperAlert(false)}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl text-xl transition-colors"
-            >
-              Acknowledge & Close
-            </button>
+            <p className="text-[13px] leading-relaxed text-muted">
+              {tamperedFile} failed its integrity check, so the download was stopped.
+            </p>
+            <div className="mt-2 flex justify-end">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setTamperedFile(null)}
+                className="h-10 rounded-md bg-btn px-4 text-sm font-medium text-btn-fg"
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Sidebar */}
-      <aside className="w-72 bg-surface border-r border-border hidden md:flex flex-col shadow-sm z-10">
-        <div className="p-8 border-b border-border">
-          <h1 className="text-3xl font-extrabold text-primary flex items-center gap-3">
-            <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
-            Enclave
-          </h1>
+      <header className="flex h-16 shrink-0 items-center justify-between border-b border-line px-6 sm:px-12">
+        <span className="text-[17px] font-semibold tracking-tight">Enclave</span>
+        <div className="flex items-center gap-3">
+          <span className="mr-1 hidden text-[13px] text-muted sm:inline">{user?.username}</span>
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={logout}
+            className="h-9 rounded-md border border-border px-3 text-[13px]"
+          >
+            Log out
+          </button>
         </div>
-        <nav className="flex-1 p-6">
-          <ul className="space-y-4">
-            <li>
-              <a href="#" className="flex items-center gap-4 p-4 bg-blue-50 text-primary rounded-xl font-bold text-xl shadow-sm">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                My Vault
-              </a>
-            </li>
-            <li>
-              <a href="#" className="flex items-center gap-4 p-4 hover:bg-gray-50 text-muted rounded-xl font-semibold text-xl transition-colors">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                Settings
-              </a>
-            </li>
-          </ul>
-        </nav>
-      </aside>
+      </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="h-24 bg-surface border-b border-border flex items-center justify-between px-10 shadow-sm z-0">
-          <h2 className="text-3xl font-bold md:hidden text-primary">Enclave</h2>
-          <div className="flex-1"></div>
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-4 border-r border-border pr-6">
-              <div className="w-12 h-12 bg-blue-100 text-primary rounded-full flex items-center justify-center font-bold text-2xl">
-                {user?.username?.charAt(0).toUpperCase()}
-              </div>
-              <span className="text-text font-bold text-xl hidden sm:block">{user?.username}</span>
-            </div>
-            <button 
-              onClick={logout}
-              className="px-6 py-2.5 border-2 border-border hover:bg-gray-50 text-text font-bold rounded-xl transition-colors text-lg"
-            >
-              Logout
-            </button>
+      <main className="flex flex-1 flex-col gap-7 px-6 py-10 sm:px-12">
+        <div className="flex items-end justify-between gap-4">
+          <div className="flex flex-col gap-1.5">
+            <h1 className="text-2xl font-semibold tracking-tight">Files</h1>
+            <p className="min-h-5 font-mono text-[13px] text-muted">{summary}</p>
           </div>
-        </header>
+          <input ref={fileInputRef} type="file" onChange={handleFileChange} className="hidden" />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current.click()}
+            disabled={progress !== null}
+            className="flex h-10 items-center gap-2 rounded-md bg-btn px-4 text-sm font-medium text-btn-fg disabled:opacity-45"
+          >
+            <UploadIcon />
+            Upload
+          </button>
+        </div>
 
-        {/* Vault Content Area */}
-        <div className="p-12 flex-1 overflow-y-auto bg-background">
-          <div className="flex justify-between items-center mb-10">
-            <h3 className="text-4xl font-extrabold text-text">My Files</h3>
-            
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              style={{ display: 'none' }} 
-              onChange={handleFileChange} 
-            />
-            <button 
-              onClick={handleUploadClick}
-              disabled={uploading}
-              className={`${uploading ? 'bg-blue-300 cursor-not-allowed' : 'bg-primary hover:bg-blue-700 shadow-lg hover:shadow-xl hover:-translate-y-0.5'} px-8 py-4 rounded-xl font-bold text-white transition-all duration-200 flex items-center gap-3 text-xl`}
-            >
-              {uploading ? (
-                <>
-                  <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                  Upload File
-                </>
-              )}
-            </button>
+        {progress !== null && (
+          <div role="status" className="flex flex-col gap-2.5 rounded-md bg-surface px-4 py-3.5">
+            <div className="flex justify-between gap-4 text-[13px]">
+              <span className="truncate">
+                Uploading <span className="text-muted">{uploadName}</span>
+              </span>
+              <span className="font-mono text-muted">{progress}%</span>
+            </div>
+            <div className="h-[3px] bg-track">
+              <div className="h-[3px] bg-fg" style={{ width: `${progress}%` }} />
+            </div>
           </div>
+        )}
 
-          {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-primary text-2xl font-bold flex items-center gap-4">
-                 <svg className="animate-spin h-10 w-10 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                 Loading your vault...
-              </div>
-            </div>
-          ) : error ? (
-            <div className="bg-red-50 text-red-600 p-8 rounded-2xl border border-red-200 text-center text-xl font-bold">{error}</div>
-          ) : files.length === 0 ? (
-            <div className="bg-surface p-20 rounded-3xl border-2 border-dashed border-border flex flex-col items-center justify-center text-center shadow-sm">
-              <div className="w-32 h-32 bg-blue-50 text-primary rounded-full flex items-center justify-center mb-8">
-                <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-              </div>
-              <p className="text-text font-extrabold text-3xl mb-4">Your vault is completely empty</p>
-              <p className="text-xl text-muted max-w-lg leading-relaxed">Click the "Upload File" button above to securely store your first file in the Enclave.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-              {files.map((file) => (
-                <div key={file._id} className="bg-surface p-8 rounded-2xl border border-border flex flex-col justify-between h-56 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group">
-                  <div className="flex items-start gap-5">
-                    <div className="p-4 bg-blue-50 text-primary rounded-xl shrink-0">
-                      <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                    </div>
-                    <div className="overflow-hidden">
-                      <h4 className="font-bold text-2xl text-text truncate mb-2" title={file.originalName}>
-                        {file.originalName}
-                      </h4>
-                      <p className="text-lg text-muted font-medium">{(file.size / 1024 / 1024).toFixed(2)} MB • {new Date(file.createdAt).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                  <div className="flex justify-end mt-4">
-                    <button 
-                      onClick={() => handleDownload(file._id, file.originalName)}
-                      className="text-lg bg-blue-50 hover:bg-primary hover:text-white text-primary px-6 py-3 rounded-xl font-bold transition-colors flex items-center gap-2"
+        {actionError && (
+          <p role="alert" className="text-sm text-danger">
+            {actionError}
+          </p>
+        )}
+
+        <table className="w-full table-fixed border-collapse text-sm">
+          <thead>
+            <tr className="text-left text-xs text-muted">
+              <th scope="col" className="border-b border-border pr-4 pb-2.5 font-medium">
+                Name
+              </th>
+              <th scope="col" className="w-[100px] border-b border-border pr-4 pb-2.5 text-right font-medium sm:w-[120px]">
+                Size
+              </th>
+              <th scope="col" className="hidden w-[160px] border-b border-border pr-4 pb-2.5 pl-8 font-medium sm:table-cell">
+                Uploaded
+              </th>
+              <th scope="col" className="w-[110px] border-b border-border pb-2.5">
+                <span className="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {statusMessage ? (
+              <tr>
+                <td
+                  colSpan={4}
+                  className={`border-b border-line py-14 text-center ${error ? 'text-danger' : 'text-muted'}`}
+                >
+                  {statusMessage}
+                </td>
+              </tr>
+            ) : (
+              files.map((file) => (
+                <tr key={file._id}>
+                  <td className="truncate border-b border-line py-2 pr-4" title={file.originalName}>
+                    {file.originalName}
+                  </td>
+                  <td className="border-b border-line py-2 pr-4 text-right font-mono text-[13px] text-muted">
+                    {formatSize(file.size)}
+                  </td>
+                  <td className="hidden border-b border-line py-2 pr-4 pl-8 font-mono text-[13px] text-muted sm:table-cell">
+                    {formatDate(file.createdAt)}
+                  </td>
+                  <td className="border-b border-line py-2 text-right">
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(file)}
+                      disabled={downloadingId !== null}
+                      className="h-9 px-0.5 text-[13px] font-medium underline underline-offset-[3px] disabled:opacity-50"
                     >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                      </svg>
-                      Download
+                      {downloadingId === file._id ? 'Downloading...' : 'Download'}
                     </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </main>
     </div>
-  );
-};
+  )
+}
 
-export default Dashboard;
+export default Dashboard

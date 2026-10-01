@@ -1,36 +1,65 @@
+require('dotenv').config({ quiet: true });
+
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const mongoose = require('mongoose');
+const { getMasterKey } = require('./utils/crypto');
 
-dotenv.config();
+for (const name of ['MONGO_URI', 'JWT_SECRET', 'MASTER_KEY']) {
+  if (!process.env[name]) {
+    throw new Error(`Missing required environment variable: ${name} (see server/.env.example)`);
+  }
+}
+
+// A bad key stops the server now instead of failing on the first upload
+getMasterKey();
+
+// uploads/ is gitignored, so a fresh clone won't have it
+const uploadDir = path.resolve(__dirname, process.env.UPLOAD_DIR || 'uploads');
+fs.mkdirSync(uploadDir, { recursive: true });
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+app.set('uploadDir', uploadDir);
 
-// Middleware
 app.use(express.json());
-app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
-  credentials: true
-}));
+app.use(cors({ origin: process.env.CLIENT_URL }));
 
-// Database Connection
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB Connected'))
-  .catch(err => console.error('MongoDB Connection Error:', err));
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+  });
+});
 
-// Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/vault', require('./routes/vault'));
 app.use('/api/files', require('./routes/files'));
 
-// Health Check Route
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Server is running securely.' });
+// Express 5 sends errors from async routes here automatically
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const status = err.status || 500;
+  if (status >= 500) console.error(err);
+  res.status(status).json({ message: status >= 500 ? 'Internal server error' : err.message });
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+const PORT = process.env.PORT || 5000;
+
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log(`MongoDB connected (database: ${mongoose.connection.name})`);
+    app.listen(PORT, (err) => {
+      if (err) {
+        console.error(`Could not start server on port ${PORT}:`, err.message);
+        process.exit(1);
+      }
+      console.log(`Server listening on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('MongoDB connection failed:', err.message);
+    process.exit(1);
+  });

@@ -1,44 +1,42 @@
-import { create } from 'zustand';
-import api from '../api/axios';
+import { create } from 'zustand'
+import api from '../api/axios'
 
 const useAuthStore = create((set) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
 
-  checkAuth: async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      set({ user: null, isAuthenticated: false, isLoading: false });
-      return;
-    }
-
-    try {
-      const res = await api.get('/auth/me');
-      set({ user: res.data, isAuthenticated: true, isLoading: false });
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      localStorage.removeItem('token');
-      set({ user: null, isAuthenticated: false, isLoading: false });
-    }
-  },
-
   login: async (email, password) => {
-    const res = await api.post('/auth/login', { email, password });
-    localStorage.setItem('token', res.data.token);
-    set({ user: res.data.user, isAuthenticated: true });
+    const { data } = await api.post('/auth/login', { email, password })
+    localStorage.setItem('token', data.token)
+    set({ user: data.user, isAuthenticated: true })
   },
 
   register: async (username, email, password) => {
-    const res = await api.post('/auth/register', { username, email, password });
-    localStorage.setItem('token', res.data.token);
-    set({ user: res.data.user, isAuthenticated: true });
+    const { data } = await api.post('/auth/register', { username, email, password })
+    localStorage.setItem('token', data.token)
+    set({ user: data.user, isAuthenticated: true })
   },
 
   logout: () => {
-    localStorage.removeItem('token');
-    set({ user: null, isAuthenticated: false });
+    localStorage.removeItem('token')
+    set({ user: null, isAuthenticated: false })
   },
-}));
 
-export default useAuthStore;
+  // Runs on app start: restores the session from the saved token
+  checkAuth: async () => {
+    if (!localStorage.getItem('token')) {
+      set({ isLoading: false })
+      return
+    }
+    try {
+      const { data } = await api.get('/auth/me')
+      set({ user: data, isAuthenticated: true, isLoading: false })
+    } catch {
+      localStorage.removeItem('token')
+      set({ user: null, isAuthenticated: false, isLoading: false })
+    }
+  },
+}))
+
+export default useAuthStore

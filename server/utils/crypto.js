@@ -1,32 +1,19 @@
 const crypto = require('crypto');
 
-/**
- * Generates a standard 12-byte initialization vector for AES-GCM.
- * @returns {Buffer} A 12-byte random IV.
- */
-function generateIV() {
-    return crypto.randomBytes(12);
-}
-
-/**
- * Retrieves and formats the master encryption key from environment variables.
- * Assumes the MASTER_KEY is stored as a 64-character hex string (32 bytes).
- * @returns {Buffer} The 32-byte master key as a Buffer.
- * @throws {Error} If MASTER_KEY is not set or is not the correct length.
- */
+// The AES-256 key: 64 hex characters in MASTER_KEY = 32 bytes
 function getMasterKey() {
-    const keyString = process.env.MASTER_KEY;
-    if (!keyString) {
-        throw new Error('MASTER_KEY is not defined in environment variables.');
-    }
-    const keyBuffer = Buffer.from(keyString, 'hex');
-    if (keyBuffer.length !== 32) {
-        throw new Error('MASTER_KEY must be exactly 32 bytes (64 hex characters).');
-    }
-    return keyBuffer;
+  const key = Buffer.from(process.env.MASTER_KEY || '', 'hex');
+  if (key.length !== 32) {
+    throw new Error(
+      `MASTER_KEY must be exactly 64 hex characters (32 bytes), got ${key.length} bytes`,
+    );
+  }
+  return key;
 }
 
-module.exports = {
-    generateIV,
-    getMasterKey
-};
+// A fresh 12-byte IV for every file, never reused
+function generateIV() {
+  return crypto.randomBytes(12);
+}
+
+module.exports = { getMasterKey, generateIV };

@@ -1,132 +1,152 @@
-const express = require('express');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { pipeline } = require('stream/promises');
+const express = require('express');
+const mongoose = require('mongoose');
 const busboy = require('busboy');
-const crypto = require('crypto');
-const cryptoUtils = require('../utils/crypto');
 const File = require('../models/File');
-const authMiddleware = require('../middleware/authMiddleware');
+const auth = require('../middleware/auth');
+const { getMasterKey, generateIV } = require('../utils/crypto');
 
 const router = express.Router();
 
-// @route   POST /api/files/upload
-// @desc    Stream file upload to disk and save metadata
-router.post('/upload', authMiddleware, (req, res) => {
-  const bb = busboy({ headers: req.headers });
-  const uploadPromises = [];
+router.post('/upload', auth, async (req, res) => {
+  let bb;
+  try {
+    bb = busboy({ headers: req.headers, defParamCharset: 'utf8' });
+  } catch {
+    return res.status(400).json({ message: 'Expected a multipart/form-data upload' });
+  }
 
-  bb.on('file', (name, file, info) => {
-    const { filename, encoding, mimeType } = info;
-    const uniqueFilename = crypto.randomUUID() + '-' + filename;
-    const saveTo = path.join(__dirname, '..', 'uploads', uniqueFilename);
-    let fileSize = 0;
-    
-    const ivBuffer = cryptoUtils.generateIV();
-    const masterKey = cryptoUtils.getMasterKey();
-    const cipher = crypto.createCipheriv('aes-256-gcm', masterKey, ivBuffer);
-    
-    const writeStream = fs.createWriteStream(saveTo);
-    
-    file.on('data', (data) => {
-      fileSize += data.length;
-    });
+  const uploadDir = req.app.get('uploadDir');
+  const saves = [];
+  let uploadError = null; // malformed or aborted upload (client side)
+  let writeError = null; // could not write to disk (server side)
 
-    // Pipe the readable file stream through cipher to the writable disk stream
-    file.pipe(cipher).pipe(writeStream);
-    
-    const p = new Promise((resolve, reject) => {
-      writeStream.on('finish', async () => {
-        try {
-          const authTagBuffer = cipher.getAuthTag();
-          const fileDoc = new File({
-            originalName: filename,
-            filename: uniqueFilename,
-            mimeType: mimeType,
-            size: fileSize,
-            storagePath: saveTo,
-            owner: req.user.id,
-            iv: ivBuffer.toString('hex'),
-            authTag: authTagBuffer.toString('hex')
-          });
-          await fileDoc.save();
-          resolve(fileDoc);
-        } catch (err) {
-          reject(err);
-        }
-      });
-      writeStream.on('error', reject);
-      cipher.on('error', reject);
-    });
-    
-    uploadPromises.push(p);
-  });
-
-  bb.on('finish', async () => {
-    try {
-      const savedFiles = await Promise.all(uploadPromises);
-      res.status(200).json({ message: 'Upload successful', files: savedFiles });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Error processing upload' });
+  bb.on('file', (fieldName, fileStream, { filename, mimeType }) => {
+    if (!filename) {
+      fileStream.resume(); // a part without a file name: skip it
+      return;
     }
+
+    // Disk name is a random UUID only, never the user's file name
+    const diskName = crypto.randomUUID();
+    const storagePath = path.join(uploadDir, diskName);
+    const writeStream = fs.createWriteStream(storagePath);
+
+    // Encrypt on the fly with AES-256-GCM and a fresh IV per file
+    const iv = generateIV();
+    const cipher = crypto.createCipheriv('aes-256-gcm', getMasterKey(), iv);
+
+    const save = (async () => {
+      try {
+        await pipeline(fileStream, cipher, writeStream);
+      } catch (err) {
+        // If busboy is still running, the disk write failed. busboy stalls
+        // when one of its file streams dies, so stop parsing.
+        if (!bb.destroyed) {
+          writeError = err;
+          bb.destroy(err);
+        }
+        throw err;
+      }
+      return File.create({
+        filename: diskName,
+        originalName: filename,
+        mimeType,
+        size: writeStream.bytesWritten, // GCM ciphertext is exactly as long as the original
+        storagePath,
+        iv: iv.toString('hex'),
+        authTag: cipher.getAuthTag().toString('hex'),
+        owner: req.userId,
+      });
+    })().catch(async (err) => {
+      // Stream or database save failed: delete the half-written file
+      await fs.promises.unlink(storagePath).catch(() => {});
+      throw err;
+    });
+
+    // Crash guard: the real handling happens in 'close'
+    save.catch(() => {});
+    saves.push(save);
   });
 
   bb.on('error', (err) => {
-    console.error(err);
-    res.status(500).json({ message: 'Stream error' });
+    uploadError = err;
   });
 
-  req.pipe(bb);
+  bb.on('close', async () => {
+    const results = await Promise.allSettled(saves);
+    if (res.headersSent) return;
+
+    if (writeError) {
+      console.error('Upload failed:', writeError.message);
+      return res.status(500).json({ message: 'Could not save the file' });
+    }
+    if (uploadError) {
+      return res.status(400).json({ message: 'Upload was incomplete or malformed' });
+    }
+    const failed = results.find((result) => result.status === 'rejected');
+    if (failed) {
+      console.error('Upload failed:', failed.reason.message);
+      return res.status(500).json({ message: 'Could not save the file' });
+    }
+    if (results.length === 0) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+    res.status(201).json({ files: results.map((result) => result.value) });
+  });
+
+  try {
+    // pipeline (not req.pipe) so an aborted upload destroys busboy instead of hanging
+    await pipeline(req, bb);
+  } catch {
+    // Aborted or malformed uploads are answered in 'close'
+  }
 });
 
-// @route   GET /api/files/download/:fileId
-// @desc    Stream file download to client
-router.get('/download/:fileId', authMiddleware, async (req, res) => {
+router.get('/download/:fileId', auth, async (req, res) => {
+  const { fileId } = req.params;
+
+  // Other users' files also get 404, so the server doesn't reveal they exist
+  const file = mongoose.isValidObjectId(fileId)
+    ? await File.findOne({ _id: fileId, owner: req.userId })
+    : null;
+  if (!file) {
+    return res.status(404).json({ message: 'File not found' });
+  }
+
+  // Check the disk before any headers are sent
   try {
-    const fileDoc = await File.findOne({ _id: req.params.fileId, owner: req.user.id });
-    if (!fileDoc) {
-      return res.status(404).json({ message: 'File not found or unauthorized' });
-    }
+    await fs.promises.access(file.storagePath);
+  } catch {
+    return res.status(404).json({ message: 'File not found' });
+  }
 
-    if (!fs.existsSync(fileDoc.storagePath)) {
-      return res.status(404).json({ message: 'File physically missing on server' });
-    }
+  // authTagLength blocks shortened-tag attacks
+  const decipher = crypto.createDecipheriv(
+    'aes-256-gcm',
+    getMasterKey(),
+    Buffer.from(file.iv, 'hex'),
+    { authTagLength: 16 },
+  );
+  decipher.setAuthTag(Buffer.from(file.authTag, 'hex'));
 
-    res.setHeader('Content-Disposition', `attachment; filename="${fileDoc.originalName}"`);
-    res.setHeader('Content-Type', fileDoc.mimeType);
+  res.attachment(file.originalName); // safe Content-Disposition for any characters
+  res.setHeader('Content-Type', file.mimeType);
 
-    if (!fileDoc.iv || !fileDoc.authTag) {
-      return res.status(400).json({ message: 'Legacy file missing encryption metadata' });
-    }
-
-    const ivBuffer = Buffer.from(fileDoc.iv, 'hex');
-    const authTagBuffer = Buffer.from(fileDoc.authTag, 'hex');
-    const masterKey = cryptoUtils.getMasterKey();
-
-    const decipher = crypto.createDecipheriv('aes-256-gcm', masterKey, ivBuffer);
-    decipher.setAuthTag(authTagBuffer);
-
-    const readStream = fs.createReadStream(fileDoc.storagePath);
-
-    readStream.on('error', (err) => {
-      console.error('ReadStream error:', err);
-      if (!res.headersSent) res.status(500).json({ message: 'Error reading file from disk' });
-      else res.destroy(err);
-    });
-
-    decipher.on('error', (err) => {
-      console.error('CRITICAL: Integrity Check Failed / Possible Tampering detected.', err);
-      if (!res.headersSent) {
-        res.status(500).json({ message: 'File integrity check failed.' });
-      } else {
-        res.destroy(err);
-      }
-    });
-
-    readStream.pipe(decipher).pipe(res);
+  // GCM checks the tag only at the end of the file. On failure, pipeline
+  // destroys res, so the download is cut off and never completes.
+  try {
+    await pipeline(fs.createReadStream(file.storagePath), decipher, res);
   } catch (err) {
-    console.error('Download error:', err);
-    res.status(500).json({ message: 'Server error during download' });
+    if (err.message.includes('unable to authenticate')) {
+      console.error('🚨 INTEGRITY CHECK FAILED / POSSIBLE TAMPERING: file', file.id);
+    } else if (err.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+      // Premature close = the user cancelled the download
+      console.error('Download error:', err.message);
+    }
   }
 });
 

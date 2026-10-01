@@ -1,10 +1,75 @@
 @import "tailwindcss";
-@config "../tailwind.config.js";
 
-body {
-  background-color: var(--color-background, #f8fafc);
-  color: var(--color-text, #0f172a);
-  margin: 0;
-  font-family: Calibri, system-ui, sans-serif;
-  font-size: 1.125rem;
+/* Theme colours. Dark (AMOLED black) is the default; <html data-theme="light"> switches to light.
+   The light theme is a soft warm grey, not white, so it is easy on the eyes. */
+:root {
+  --bg: #000000;
+  --surface: #111113;
+  --input: #111113;
+  --border: #2a2a2e;
+  --line: #1a1a1d;
+  --track: #26262a;
+  --fg: #f4f4f5;
+  --muted: #9a9aa2;
+  --btn: #f4f4f5;
+  --btn-fg: #000000;
+  --danger: #f87171;
+  --danger-border: #ef4444;
+  --ok: #22c55e;
+  --overlay: rgba(0, 0, 0, 0.72);
+  --dialog: #111113;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #eceae5;
+  --surface: #e2e0da;
+  --input: #f5f4f0;
+  --border: #c9c6bf;
+  --line: #d9d6cf;
+  --track: #cfccc5;
+  --fg: #1d1d1f;
+  --muted: #5c5b56;
+  --btn: #1d1d1f;
+  --btn-fg: #f5f4f0;
+  --danger: #b42318;
+  --danger-border: #d92d20;
+  --ok: #15803d;
+  --overlay: rgba(29, 29, 31, 0.35);
+  --dialog: #f5f4f0;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-line: var(--line);
+  --color-track: var(--track);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-btn: var(--btn);
+  --color-btn-fg: var(--btn-fg);
+  --color-danger: var(--danger);
+  --color-danger-border: var(--danger-border);
+  --color-ok: var(--ok);
+  --color-overlay: var(--overlay);
+  --color-dialog: var(--dialog);
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+@layer base {
+  body {
+    background-color: var(--bg);
+    color: var(--fg);
+  }
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 2px;
+  }
 }

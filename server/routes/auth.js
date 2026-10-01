@@ -1,96 +1,75 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const authMiddleware = require('../middleware/authMiddleware');
+const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-// @route   POST /api/auth/register
-// @desc    Register a user
-router.post('/register', async (req, res) => {
-  try {
-    const { username, email, password } = req.body;
+const signToken = (user) =>
+  jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-    let user = await User.findOne({ $or: [{ email }, { username }] });
-    if (user) {
+// Never includes the password hash
+const publicUser = (user) => ({ id: user._id, username: user.username, email: user.email });
+
+// Only plain strings are accepted, so objects like {"$ne": ""} can't reach a query
+const isString = (value) => typeof value === 'string';
+
+router.post('/register', async (req, res) => {
+  const { username, email, password } = req.body || {};
+  if (!isString(username) || !isString(email) || !isString(password)) {
+    return res.status(400).json({ message: 'Username, email and password are required' });
+  }
+
+  const cleanUsername = username.trim();
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanUsername) {
+    return res.status(400).json({ message: 'Username is required' });
+  }
+  if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) {
+    return res.status(400).json({ message: 'Please enter a valid email' });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ message: 'Password must be at least 8 characters' });
+  }
+
+  const exists = await User.findOne({ $or: [{ email: cleanEmail }, { username: cleanUsername }] });
+  if (exists) {
+    return res.status(400).json({ message: 'User already exists' });
+  }
+
+  try {
+    const user = await User.create({ username: cleanUsername, email: cleanEmail, password });
+    res.status(201).json({ token: signToken(user), user: publicUser(user) });
+  } catch (err) {
+    // Two identical sign-ups at the same moment: the unique index rejects the second
+    if (err.code === 11000) {
       return res.status(400).json({ message: 'User already exists' });
     }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    user = new User({
-      username,
-      email,
-      password: hashedPassword,
-    });
-
-    await user.save();
-
-    const payload = { user: { id: user.id } };
-
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET,
-      { expiresIn: '1d' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
-      }
-    );
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+    throw err;
   }
 });
 
-// @route   POST /api/auth/login
-// @desc    Authenticate user & get token
 router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid Credentials' });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid Credentials' });
-    }
-
-    const payload = { user: { id: user.id } };
-
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET,
-      { expiresIn: '1d' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
-      }
-    );
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+  const { email, password } = req.body || {};
+  if (!isString(email) || !isString(password)) {
+    return res.status(400).json({ message: 'Email and password are required' });
   }
+
+  const user = await User.findOne({ email: email.trim().toLowerCase() });
+  // Same message for a wrong email or a wrong password
+  if (!user || !(await user.checkPassword(password))) {
+    return res.status(400).json({ message: 'Invalid credentials' });
+  }
+
+  res.json({ token: signToken(user), user: publicUser(user) });
 });
 
-// @route   GET /api/auth/me
-// @desc    Get logged in user
-router.get('/me', authMiddleware, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('-password');
-    if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-    }
-    res.json(user);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+router.get('/me', auth, async (req, res) => {
+  const user = await User.findById(req.userId);
+  if (!user) {
+    return res.status(401).json({ message: 'User not found' });
   }
+  res.json(publicUser(user));
 });
 
 module.exports = router;
